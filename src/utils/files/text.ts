@@ -103,16 +103,21 @@ export class TextFileHandler implements FileHandler {
     /**
      * Count lines in text content
      * Made static and public for use by other modules (e.g., writeFile telemetry in filesystem.ts)
+     * Optimized: Uses indexOf loop instead of content.split('\n') to avoid large array allocations
      */
     static countLines(content: string): number {
         if (content === '') return 0;
-        // A file with N lines has N-1 newline characters.
-        // If the file ends with a trailing newline, don't count the empty string after it.
-        const lines = content.split('\n');
-        if (lines[lines.length - 1] === '') {
-            return lines.length - 1;
+        let count = 0;
+        let pos = 0;
+        while ((pos = content.indexOf('\n', pos)) !== -1) {
+            count++;
+            pos++;
         }
-        return lines.length;
+        // If content does not end with trailing newline, count the final line
+        if (content[content.length - 1] !== '\n') {
+            count++;
+        }
+        return count;
     }
 
     /**
@@ -169,32 +174,32 @@ export class TextFileHandler implements FileHandler {
     /**
      * Split text into lines while preserving line endings
      * Made static and public for use by other modules (e.g., readFileInternal in filesystem.ts)
+     * Optimized: Uses index slicing instead of char-by-char concatenation to reduce allocations
      */
     static splitLinesPreservingEndings(content: string): string[] {
         if (!content) return [''];
 
         const lines: string[] = [];
-        let currentLine = '';
+        let lineStart = 0;
+        const len = content.length;
 
-        for (let i = 0; i < content.length; i++) {
+        for (let i = 0; i < len; i++) {
             const char = content[i];
-            currentLine += char;
 
             if (char === '\n') {
-                lines.push(currentLine);
-                currentLine = '';
+                lines.push(content.slice(lineStart, i + 1));
+                lineStart = i + 1;
             } else if (char === '\r') {
-                if (i + 1 < content.length && content[i + 1] === '\n') {
-                    currentLine += content[i + 1];
+                if (i + 1 < len && content[i + 1] === '\n') {
                     i++;
                 }
-                lines.push(currentLine);
-                currentLine = '';
+                lines.push(content.slice(lineStart, i + 1));
+                lineStart = i + 1;
             }
         }
 
-        if (currentLine) {
-            lines.push(currentLine);
+        if (lineStart < len) {
+            lines.push(content.slice(lineStart));
         }
 
         return lines;
