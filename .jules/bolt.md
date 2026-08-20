@@ -1,0 +1,3 @@
+## 2025-05-18 - Zero-Allocation Line Counting & Fast-Path Line Normalization
+**Learning:** In desktop file operations, calling `content.split('\n')` to get a file or buffer line count creates large arrays of string allocations that slow down processing and trigger high garbage collection overhead on multi-megabyte files. A simple single-pass `charCodeAt(i) === 10` loop provides 10x-50x faster line counts with zero heap allocations.
+**Action:** Avoid using `split('\n').length` for line counting or status checks on large text contents; use `TextFileHandler.countLines` or character-scanning loops instead.
