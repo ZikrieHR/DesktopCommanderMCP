@@ -9,23 +9,49 @@ const NUL_RE = new RegExp(NUL_CHAR, 'g');
  * Strip NUL characters (U+0000) from strings and object keys — Postgres rejects
  * them in jsonb and text (22P05). Walks the structure rather than
  * round-tripping JSON, which would also match escape text in legitimate content.
+ *
+ * Performance optimization: Zero allocations for clean payloads (preserves reference
+ * equality when no NUL bytes are present) and uses `for...in` instead of `Object.entries`
+ * to avoid creating intermediate key-value arrays.
  */
 export function stripNullBytes<T>(value: T): T {
     if (typeof value === 'string') {
         return (value.includes(NUL_CHAR) ? value.replace(NUL_RE, '') : value) as T;
     }
     if (Array.isArray(value)) {
-        return value.map((item) => stripNullBytes(item)) as T;
+        let hasChanged = false;
+        const len = value.length;
+        const out: any[] = new Array(len);
+        for (let i = 0; i < len; i++) {
+            const item = value[i];
+            const cleaned = stripNullBytes(item);
+            if (cleaned !== item) {
+                hasChanged = true;
+            }
+            out[i] = cleaned;
+        }
+        return (hasChanged ? out : value) as T;
     }
     if (value && typeof value === 'object') {
         // Plain objects only — leave Date/Buffer/etc. untouched.
         const proto = Object.getPrototypeOf(value);
         if (proto !== Object.prototype && proto !== null) return value;
+
+        let hasChanged = false;
         const out: Record<string, any> = {};
-        for (const [k, v] of Object.entries(value as Record<string, any>)) {
-            out[k.includes(NUL_CHAR) ? k.replace(NUL_RE, '') : k] = stripNullBytes(v);
+        const obj = value as Record<string, any>;
+        for (const k in obj) {
+            if (Object.prototype.hasOwnProperty.call(obj, k)) {
+                const cleanedKey = k.includes(NUL_CHAR) ? k.replace(NUL_RE, '') : k;
+                const v = obj[k];
+                const cleanedValue = stripNullBytes(v);
+                if (cleanedKey !== k || cleanedValue !== v) {
+                    hasChanged = true;
+                }
+                out[cleanedKey] = cleanedValue;
+            }
         }
-        return out as T;
+        return (hasChanged ? out : value) as T;
     }
     return value;
 }
