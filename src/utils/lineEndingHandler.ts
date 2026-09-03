@@ -26,8 +26,21 @@ export function detectLineEnding(content: string): LineEndingStyle {
 
 /**
  * Normalize line endings to match the target style
+ *
+ * Performance optimization: If text has no carriage returns (`\r`), skip redundant
+ * regex replacement passes. When target is `\n`, returns text directly without allocation.
  */
 export function normalizeLineEndings(text: string, targetLineEnding: LineEndingStyle): string {
+    if (!text.includes('\r')) {
+        if (targetLineEnding === '\n') {
+            return text;
+        } else if (targetLineEnding === '\r\n') {
+            return text.replace(/\n/g, '\r\n');
+        } else if (targetLineEnding === '\r') {
+            return text.replace(/\n/g, '\r');
+        }
+    }
+
     // First normalize to LF
     let normalized = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
     
