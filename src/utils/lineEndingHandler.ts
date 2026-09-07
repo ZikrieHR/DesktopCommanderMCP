@@ -25,20 +25,43 @@ export function detectLineEnding(content: string): LineEndingStyle {
 }
 
 /**
- * Normalize line endings to match the target style
+ * Normalize line endings to match the target style.
+ *
+ * Optimization:
+ * 1. Fast path for already-matching strings: avoids regex allocation/scanning completely
+ *    when standard LF strings don't contain '\r'.
+ * 2. Single-pass regex replacement: replaces CRLF and CR in a single pass instead of
+ *    performing multiple regex replaces and intermediate string copies.
  */
 export function normalizeLineEndings(text: string, targetLineEnding: LineEndingStyle): string {
-    // First normalize to LF
-    let normalized = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
-    
-    // Then convert to target
-    if (targetLineEnding === '\r\n') {
-        return normalized.replace(/\n/g, '\r\n');
-    } else if (targetLineEnding === '\r') {
-        return normalized.replace(/\n/g, '\r');
+    if (targetLineEnding === '\n') {
+        // Fast path: if there are no carriage returns, text is already normalized to LF
+        if (!text.includes('\r')) {
+            return text;
+        }
+        // Single pass: replace both \r\n and standalone \r with \n
+        return text.replace(/\r\n?/g, '\n');
     }
-    
-    return normalized;
+
+    if (targetLineEnding === '\r\n') {
+        // Fast path: if there are no carriage returns, simple LF -> CRLF conversion
+        if (!text.includes('\r')) {
+            return text.replace(/\n/g, '\r\n');
+        }
+        // Single pass: replace all line endings (\r\n, \n, \r) with \r\n
+        return text.replace(/\r?\n|\r/g, '\r\n');
+    }
+
+    if (targetLineEnding === '\r') {
+        // Fast path: if already pure CR (contains CR, no LF)
+        if (!text.includes('\n') && text.includes('\r')) {
+            return text;
+        }
+        // Single pass: replace all line endings with \r
+        return text.replace(/\r?\n|\r/g, '\r');
+    }
+
+    return text;
 }
 
 /**
