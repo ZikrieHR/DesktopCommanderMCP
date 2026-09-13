@@ -6,6 +6,11 @@
 
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const serverPath = path.resolve(__dirname, "../dist/index.js");
 
 async function testConditionalTools() {
     console.log('\n=== Test: Conditional Tool Registration ===\n');
@@ -24,11 +29,15 @@ async function testConditionalTools() {
 
     const regularTransport = new StdioClientTransport({
         command: "node",
-        args: ["../dist/index.js"]
+        args: [serverPath, "--no-onboarding"],
+        stderr: "inherit"
     });
 
+    console.log('Connecting regularClient...');
     await regularClient.connect(regularTransport);
+    console.log('Connected regularClient. Requesting listTools...');
     const regularTools = await regularClient.listTools();
+    console.log('Got listTools.');
 
     const hasFeedbackRegular = regularTools.tools.some(t => t.name === 'give_feedback_to_desktop_commander');
     console.log(`   Tools count: ${regularTools.tools.length}`);
@@ -60,7 +69,7 @@ async function testConditionalTools() {
 
     const dcTransport = new StdioClientTransport({
         command: "node",
-        args: ["../dist/index.js"]
+        args: [serverPath, "--no-onboarding"]
     });
 
     await dcClient.connect(dcTransport);
