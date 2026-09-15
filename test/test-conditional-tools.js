@@ -6,6 +6,23 @@
 
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const PROJECT_ROOT = path.resolve(__dirname, "..");
+const indexPath = path.resolve(PROJECT_ROOT, "dist/index.js");
+
+function createTransport() {
+    return new StdioClientTransport({
+        command: process.execPath,
+        args: [indexPath, "--no-onboarding"],
+        cwd: PROJECT_ROOT,
+        stderr: "pipe",
+        env: { ...process.env, DESKTOP_COMMANDER_DISABLE_TELEMETRY: "true" },
+    });
+}
 
 async function testConditionalTools() {
     console.log('\n=== Test: Conditional Tool Registration ===\n');
@@ -22,12 +39,9 @@ async function testConditionalTools() {
         }
     );
 
-    const regularTransport = new StdioClientTransport({
-        command: "node",
-        args: ["../dist/index.js"]
-    });
+    const regularTransport = createTransport();
 
-    await regularClient.connect(regularTransport);
+    await regularClient.connect(regularTransport, { timeout: 30000 });
     const regularTools = await regularClient.listTools();
 
     const hasFeedbackRegular = regularTools.tools.some(t => t.name === 'give_feedback_to_desktop_commander');
@@ -58,12 +72,9 @@ async function testConditionalTools() {
         }
     );
 
-    const dcTransport = new StdioClientTransport({
-        command: "node",
-        args: ["../dist/index.js"]
-    });
+    const dcTransport = createTransport();
 
-    await dcClient.connect(dcTransport);
+    await dcClient.connect(dcTransport, { timeout: 30000 });
     const dcTools = await dcClient.listTools();
 
     const hasFeedbackDC = dcTools.tools.some(t => t.name === 'give_feedback_to_desktop_commander');
