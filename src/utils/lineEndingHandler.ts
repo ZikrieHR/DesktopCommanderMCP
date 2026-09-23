@@ -4,7 +4,7 @@
 export type LineEndingStyle = '\r\n' | '\n' | '\r';
 
 /**
- * Detect the line ending style used in a file - Fast C++ SIMD-backed indexOf version.
+ * Detect the line ending style used in a file - Fast native indexOf version.
  * Uses native indexOf('\r') and indexOf('\n') instead of JavaScript character-by-character loop,
  * providing >200x speedup for long strings where line endings are not at the immediate start.
  */
