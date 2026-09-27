@@ -8,14 +8,16 @@ export type LineEndingStyle = '\r\n' | '\n' | '\r';
  * This algorithm uses early termination for maximum performance
  */
 export function detectLineEnding(content: string): LineEndingStyle {
-    for (let i = 0; i < content.length; i++) {
-        if (content[i] === '\r') {
-            if (i + 1 < content.length && content[i + 1] === '\n') {
+    const len = content.length;
+    for (let i = 0; i < len; i++) {
+        const code = content.charCodeAt(i);
+        if (code === 13 /* '\r' */) {
+            if (i + 1 < len && content.charCodeAt(i + 1) === 10 /* '\n' */) {
                 return '\r\n';
             }
             return '\r';
         }
-        if (content[i] === '\n') {
+        if (code === 10 /* '\n' */) {
             return '\n';
         }
     }
@@ -53,16 +55,18 @@ export function analyzeLineEndings(content: string): {
     let lfCount = 0;
     let crCount = 0;
     
-    // Count line endings
-    for (let i = 0; i < content.length; i++) {
-        if (content[i] === '\r') {
-            if (i + 1 < content.length && content[i + 1] === '\n') {
+    // Count line endings using charCodeAt to avoid string allocations
+    const len = content.length;
+    for (let i = 0; i < len; i++) {
+        const code = content.charCodeAt(i);
+        if (code === 13 /* '\r' */) {
+            if (i + 1 < len && content.charCodeAt(i + 1) === 10 /* '\n' */) {
                 crlfCount++;
                 i++; // Skip the LF
             } else {
                 crCount++;
             }
-        } else if (content[i] === '\n') {
+        } else if (code === 10 /* '\n' */) {
             lfCount++;
         }
     }
