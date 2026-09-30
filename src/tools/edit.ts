@@ -28,6 +28,7 @@ import { configManager } from '../config-manager.js';
 import { fuzzySearchLogger, type FuzzySearchLogEntry } from '../utils/fuzzySearchLogger.js';
 import { resolvePreviewFileType } from '../ui/file-preview/shared/preview-file-types.js';
 import { resolveAbsolutePath } from '../handlers/filesystem-handlers.js';
+import { TextFileHandler } from '../utils/files/text.js';
 
 interface SearchReplace {
     search: string;
@@ -113,6 +114,45 @@ function getCharacterCodeData(expected: string, actual: string): {
     };
 }
 
+/**
+ * Returns the 0-based line index at character position `pos` in `text`
+ * without allocating substring arrays.
+ */
+function getLineIndexAtPos(text: string, pos: number): number {
+    if (pos <= 0) return 0;
+    let line = 0;
+    let searchPos = -1;
+    while ((searchPos = text.indexOf('\n', searchPos + 1)) !== -1 && searchPos < pos) {
+        line++;
+    }
+    return line;
+}
+
+/**
+ * Extracts lines between startLine (0-indexed inclusive) and endLine (0-indexed exclusive)
+ * from text by scanning newline positions directly without allocating an array of all lines.
+ */
+function getLineRangeSubstring(text: string, startLine: number, endLine: number): string {
+    if (startLine <= 0 && endLine >= text.length) return text;
+    let currentLine = 0;
+    let startIdx = 0;
+    let endIdx = text.length;
+
+    let pos = -1;
+    while ((pos = text.indexOf('\n', pos + 1)) !== -1) {
+        currentLine++;
+        if (startLine > 0 && currentLine === startLine) {
+            startIdx = pos + 1;
+        }
+        if (currentLine === endLine) {
+            endIdx = pos;
+            break;
+        }
+    }
+
+    return text.substring(startIdx, endIdx);
+}
+
 export async function performSearchReplace(filePath: string, block: SearchReplace, expectedReplacements: number = 1, origin?: 'ui' | 'llm'): Promise<ServerResult> {
     // Get file extension for telemetry using path module
     const fileExtension = path.extname(filePath).toLowerCase();
@@ -121,9 +161,9 @@ export async function performSearchReplace(filePath: string, block: SearchReplac
     capture('server_edit_block', {
         fileExtension: fileExtension,
         oldStringLength: block.search.length,
-        oldStringLines: block.search.split('\n').length,
+        oldStringLines: TextFileHandler.countLines(block.search),
         newStringLength: block.replace.length,
-        newStringLines: block.replace.split('\n').length,
+        newStringLines: TextFileHandler.countLines(block.replace),
         expectedReplacements: expectedReplacements
     });
     // Check for empty search string to prevent infinite loops
@@ -188,8 +228,8 @@ export async function performSearchReplace(filePath: string, block: SearchReplac
         }
         
         // Check if search or replace text has too many lines
-        const searchLines = block.search.split('\n').length;
-        const replaceLines = block.replace.split('\n').length;
+        const searchLines = TextFileHandler.countLines(block.search);
+        const replaceLines = TextFileHandler.countLines(block.replace);
         const maxLines = Math.max(searchLines, replaceLines);
         let warningMessage = "";
         
@@ -205,15 +245,14 @@ RECOMMENDATION: For large search/replace operations, consider breaking them into
         const resolvedEditPath = resolveAbsolutePath(filePath);
 
         // Show a partial preview centered on the edited area
-        const newLines = newContent.split('\n');
-        const totalLines = newLines.length;
+        const totalLines = TextFileHandler.countLines(newContent);
         const changePos = content.indexOf(normalizedSearch);
-        const changeStartLine = changePos >= 0 ? newContent.substring(0, changePos).split('\n').length - 1 : 0;
-        const changeLineCount = block.replace.split('\n').length;
+        const changeStartLine = getLineIndexAtPos(newContent, changePos);
+        const changeLineCount = replaceLines;
         const contextLines = 10;
         const previewStart = Math.max(0, changeStartLine - contextLines);
         const previewEnd = Math.min(totalLines, changeStartLine + changeLineCount + contextLines);
-        const previewContent = newLines.slice(previewStart, previewEnd).join('\n');
+        const previewContent = getLineRangeSubstring(newContent, previewStart, previewEnd);
         const previewLineCount = previewEnd - previewStart;
         const remaining = totalLines - previewEnd;
         const statusLine = `[Reading ${previewLineCount} lines from ${previewStart === 0 ? 'start' : `line ${previewStart}`} (total: ${totalLines} lines, ${remaining} remaining)]\n\n`;
