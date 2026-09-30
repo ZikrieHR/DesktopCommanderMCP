@@ -174,17 +174,18 @@ export async function performSearchReplace(filePath: string, block: SearchReplac
     if (count > 0 && count === expectedReplacements) {
         // Replace all occurrences
         let newContent = content;
+        const normalizedReplace = normalizeLineEndings(block.replace, fileLineEnding);
         
         // If we're only replacing one occurrence, replace it directly
         if (expectedReplacements === 1) {
             const searchIndex = newContent.indexOf(normalizedSearch);
             newContent = 
                 newContent.substring(0, searchIndex) + 
-                normalizeLineEndings(block.replace, fileLineEnding) + 
+                normalizedReplace +
                 newContent.substring(searchIndex + normalizedSearch.length);
         } else {
             // Replace all occurrences using split and join for multiple replacements
-            newContent = newContent.split(normalizedSearch).join(normalizeLineEndings(block.replace, fileLineEnding));
+            newContent = newContent.split(normalizedSearch).join(normalizedReplace);
         }
         
         // Check if search or replace text has too many lines

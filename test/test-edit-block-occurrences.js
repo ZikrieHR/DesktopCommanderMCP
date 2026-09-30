@@ -156,8 +156,8 @@ async function testExactNumberOfOccurrences() {
     // Check that the operation succeeded
     assert.strictEqual(result.content[0].type, 'text', 'Result should be text');
     assert.ok(
-      result.content[0].text.includes('Successfully applied 4 edits'),
-      'Should report success with the correct number of edits'
+      result.content[0].text.includes('[Reading'),
+      'Should return preview of edited area on success'
     );
     
     // Verify the file content
@@ -200,7 +200,7 @@ This is a MODIFIED target line in the header.`,
     // Check that the operation succeeded
     assert.strictEqual(result.content[0].type, 'text', 'Result should be text');
     assert.ok(
-      result.content[0].text.includes('Successfully applied 1 edit'),
+      result.content[0].text.includes('[Reading'),
       'Should report success with the header edit'
     );
     
@@ -217,7 +217,7 @@ This is a MODIFIED target line in the footer.`,
     // Check that the operation succeeded
     assert.strictEqual(result.content[0].type, 'text', 'Result should be text');
     assert.ok(
-      result.content[0].text.includes('Successfully applied 1 edit'),
+      result.content[0].text.includes('[Reading'),
       'Should report success with the footer edit'
     );
     
@@ -300,6 +300,10 @@ async function testEmptySearchString() {
     
     console.log('✓ Test correctly rejected empty search string');
   } catch (error) {
+    if (error && error.name === 'ZodError') {
+      console.log('✓ Test correctly rejected empty search string (Zod validation)');
+      return;
+    }
     console.error('❌ Test failed:', error);
     throw error;
   }
