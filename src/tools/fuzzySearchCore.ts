@@ -156,15 +156,19 @@ function iterativeReduction(text: string, query: string, start: number, end: num
 }
 
 /**
- * Calculates the similarity ratio between two strings
+ * Calculates the similarity ratio between two strings.
+ * Optional knownDistance avoids recalculating Levenshtein distance when it was
+ * already computed by runFuzzySearch/recursiveFuzzyIndexOf.
  * @param a First string
  * @param b Second string
+ * @param knownDistance Optional pre-computed Levenshtein distance
  * @returns Similarity ratio (0-1)
  */
-export function getSimilarityRatio(a: string, b: string): number {
+export function getSimilarityRatio(a: string, b: string, knownDistance?: number): number {
     const maxLength = Math.max(a.length, b.length);
     if (maxLength === 0) return 1; // Both strings are empty
 
-    const levenshteinDistance = distance(a, b);
+    // Reuse pre-computed distance if available to avoid redundant O(N*M) calculation
+    const levenshteinDistance = knownDistance !== undefined ? knownDistance : distance(a, b);
     return 1 - (levenshteinDistance / maxLength);
 }

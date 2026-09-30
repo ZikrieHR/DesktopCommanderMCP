@@ -260,7 +260,8 @@ RECOMMENDATION: For large search/replace operations, consider breaking them into
         // Perform fuzzy search in a worker thread so the main event loop stays
         // responsive to pings and parallel tool calls during the scan
         const fuzzyResult = await runFuzzySearchInWorker(content, block.search);
-        const similarity = getSimilarityRatio(block.search, fuzzyResult.value);
+        // Pass fuzzyResult.distance to avoid redundantly recalculating Levenshtein distance
+        const similarity = getSimilarityRatio(block.search, fuzzyResult.value, fuzzyResult.distance);
         
         // Calculate execution time in milliseconds
         const executionTime = performance.now() - startTime;
