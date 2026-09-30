@@ -1,0 +1,3 @@
+## 2025-02-25 - Native string search vs character iteration in line ending detection
+**Learning:** In V8/Node.js, using explicit character loops `content[i]` to scan large text strings in JS is significantly slower than native string methods like `indexOf()` or `includes()`, which run in optimized C++ / assembly. Fast-pathing line ending normalization with `includes()` checks before running regex replacements avoids unnecessary multi-pass allocations when string line endings already match target formats.
+**Action:** When inspecting or scanning large text buffers/strings in Node.js, leverage native `indexOf`, `lastIndexOf`, or `includes` rather than JS loops, and add early return fast paths for standard inputs.
