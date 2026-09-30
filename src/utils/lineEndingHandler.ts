@@ -25,19 +25,25 @@ export function detectLineEnding(content: string): LineEndingStyle {
 }
 
 /**
- * Normalize line endings to match the target style
+ * Normalize line endings to match the target style - Optimized version
+ * Uses early exit for standard LF strings without CRs, and single-pass regex to avoid double string allocation.
  */
 export function normalizeLineEndings(text: string, targetLineEnding: LineEndingStyle): string {
-    // First normalize to LF
-    let normalized = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
-    
-    // Then convert to target
+    // Fast path: if target is '\n' and text contains no CR characters, return text directly without allocations.
+    if (targetLineEnding === '\n' && !text.includes('\r')) {
+        return text;
+    }
+
+    // First normalize all line endings to LF using a single regex pass instead of chaining two .replace() calls
+    let normalized = text.includes('\r') ? text.replace(/\r\n?/g, '\n') : text;
+
+    // Then convert to target if different from LF
     if (targetLineEnding === '\r\n') {
         return normalized.replace(/\n/g, '\r\n');
     } else if (targetLineEnding === '\r') {
         return normalized.replace(/\n/g, '\r');
     }
-    
+
     return normalized;
 }
 
