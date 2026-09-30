@@ -162,6 +162,9 @@ function iterativeReduction(text: string, query: string, start: number, end: num
  * @returns Similarity ratio (0-1)
  */
 export function getSimilarityRatio(a: string, b: string): number {
+    // Optimization: Early return for identical strings to avoid calculating Levenshtein distance
+    if (a === b) return 1;
+
     const maxLength = Math.max(a.length, b.length);
     if (maxLength === 0) return 1; // Both strings are empty
 
