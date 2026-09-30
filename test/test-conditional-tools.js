@@ -6,6 +6,12 @@
 
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const indexPath = path.resolve(__dirname, '../dist/index.js');
 
 async function testConditionalTools() {
     console.log('\n=== Test: Conditional Tool Registration ===\n');
@@ -24,7 +30,10 @@ async function testConditionalTools() {
 
     const regularTransport = new StdioClientTransport({
         command: "node",
-        args: ["../dist/index.js"]
+        args: [indexPath, '--no-onboarding'],
+        cwd: path.resolve(__dirname, '..'),
+        stderr: 'pipe',
+        env: { ...process.env, DESKTOP_COMMANDER_DISABLE_TELEMETRY: 'true' }
     });
 
     await regularClient.connect(regularTransport);
@@ -60,7 +69,10 @@ async function testConditionalTools() {
 
     const dcTransport = new StdioClientTransport({
         command: "node",
-        args: ["../dist/index.js"]
+        args: [indexPath, '--no-onboarding'],
+        cwd: path.resolve(__dirname, '..'),
+        stderr: 'pipe',
+        env: { ...process.env, DESKTOP_COMMANDER_DISABLE_TELEMETRY: 'true' }
     });
 
     await dcClient.connect(dcTransport);
