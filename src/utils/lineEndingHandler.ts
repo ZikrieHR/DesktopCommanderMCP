@@ -26,8 +26,24 @@ export function detectLineEnding(content: string): LineEndingStyle {
 
 /**
  * Normalize line endings to match the target style
+ * Optimized with fast-path detection for clean LF strings to avoid unnecessary global regex replacements.
  */
 export function normalizeLineEndings(text: string, targetLineEnding: LineEndingStyle): string {
+    // Fast path: if text contains no carriage returns (\r), it is already LF-normalized.
+    // This avoids 2 expensive global regex passes on clean LF text.
+    if (text.indexOf('\r') === -1) {
+        if (targetLineEnding === '\n') {
+            return text;
+        }
+        if (targetLineEnding === '\r\n') {
+            return text.replace(/\n/g, '\r\n');
+        }
+        if (targetLineEnding === '\r') {
+            return text.replace(/\n/g, '\r');
+        }
+    }
+
+    // Standard path for content containing \r:
     // First normalize to LF
     let normalized = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
     
