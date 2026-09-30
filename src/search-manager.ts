@@ -357,24 +357,24 @@ export interface SearchSessionOptions {
 
     // Filter by filePattern if provided
     if (filePattern) {
-      const patterns = filePattern.split('|').map(p => p.trim()).filter(Boolean);
+      // Performance optimization: Pre-compile pattern matchers outside the file loop
+      // to avoid re-creating RegExp objects for every candidate file.
+      const rawPatterns = filePattern.split('|').map(p => p.trim()).filter(Boolean);
+      const matchers = rawPatterns.map(pat => {
+        if (pat.includes('*')) {
+          const regexPat = pat
+            .replace(/[.+^${}()|[\]\\]/g, '\\$&') // escape metacharacters except *
+            .replace(/\*/g, '.*');                  // glob * → regex .*
+          const re = new RegExp(`^${regexPat}$`, 'i');
+          return (fileName: string) => re.test(fileName);
+        }
+        const lowerPat = pat.toLowerCase();
+        return (fileName: string) => fileName.toLowerCase() === lowerPat;
+      });
+
       excelFiles = excelFiles.filter(filePath => {
         const fileName = path.basename(filePath);
-        return patterns.some(pat => {
-          // Support glob-like patterns
-          if (pat.includes('*')) {
-            // Escape all regex metacharacters first (preserving * for glob expansion),
-            // then convert the remaining * wildcards to .* for glob matching.
-            // Without this, patterns like report(2024).xlsx or [draft].xlsx would be
-            // misinterpreted as regex groups/character-classes.
-            const regexPat = pat
-              .replace(/[.+^${}()|[\]\\]/g, '\\$&') // escape metacharacters except *
-              .replace(/\*/g, '.*');                  // glob * → regex .*
-            return new RegExp(`^${regexPat}$`, 'i').test(fileName);
-          }
-          // Exact match (case-insensitive)
-          return fileName.toLowerCase() === pat.toLowerCase();
-        });
+        return matchers.some(matcher => matcher(fileName));
       });
     }
 
@@ -537,18 +537,24 @@ export interface SearchSessionOptions {
     let docxFiles = await this.findDocxFiles(rootPath);
 
     if (filePattern) {
-      const patterns = filePattern.split('|').map(p => p.trim()).filter(Boolean);
+      // Performance optimization: Pre-compile pattern matchers outside the file loop
+      // to avoid re-creating RegExp objects for every candidate file.
+      const rawPatterns = filePattern.split('|').map(p => p.trim()).filter(Boolean);
+      const matchers = rawPatterns.map(pat => {
+        if (pat.includes('*')) {
+          const regexPat = pat
+            .replace(/[.+^${}()|[\]\\]/g, '\\$&') // escape metacharacters except *
+            .replace(/\*/g, '.*');                  // glob * → regex .*
+          const re = new RegExp(`^${regexPat}$`, 'i');
+          return (fileName: string) => re.test(fileName);
+        }
+        const lowerPat = pat.toLowerCase();
+        return (fileName: string) => fileName.toLowerCase() === lowerPat;
+      });
+
       docxFiles = docxFiles.filter(filePath => {
         const fileName = path.basename(filePath);
-        return patterns.some(pat => {
-          if (pat.includes('*')) {
-            const regexPat = pat
-              .replace(/[.+^${}()|[\]\\]/g, '\\$&') // escape metacharacters except *
-              .replace(/\*/g, '.*');                  // glob * → regex .*
-            return new RegExp(`^${regexPat}$`, 'i').test(fileName);
-          }
-          return fileName.toLowerCase() === pat.toLowerCase();
-        });
+        return matchers.some(matcher => matcher(fileName));
       });
     }
 
