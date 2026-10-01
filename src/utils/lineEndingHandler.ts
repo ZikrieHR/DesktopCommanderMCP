@@ -26,19 +26,33 @@ export function detectLineEnding(content: string): LineEndingStyle {
 
 /**
  * Normalize line endings to match the target style
+ * Performance optimization: fast-path checks using string includes to avoid
+ * costly regex operations when string is already normalized.
  */
 export function normalizeLineEndings(text: string, targetLineEnding: LineEndingStyle): string {
-    // First normalize to LF
-    let normalized = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+    if (targetLineEnding === '\n') {
+        // Fast-path: if text contains no '\r', it's already purely LF-normalized
+        if (!text.includes('\r')) {
+            return text;
+        }
+        return text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+    }
     
-    // Then convert to target
     if (targetLineEnding === '\r\n') {
+        // Fast-path: if text contains no '\r', simple conversion from LF to CRLF
+        if (!text.includes('\r')) {
+            return text.replace(/\n/g, '\r\n');
+        }
+        let normalized = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
         return normalized.replace(/\n/g, '\r\n');
-    } else if (targetLineEnding === '\r') {
+    }
+
+    if (targetLineEnding === '\r') {
+        let normalized = text.includes('\r') ? text.replace(/\r\n/g, '\n').replace(/\r/g, '\n') : text;
         return normalized.replace(/\n/g, '\r');
     }
     
-    return normalized;
+    return text;
 }
 
 /**
