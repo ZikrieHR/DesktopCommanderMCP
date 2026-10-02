@@ -30,7 +30,7 @@ export function detectLineEnding(content: string): LineEndingStyle {
 export function normalizeLineEndings(text: string, targetLineEnding: LineEndingStyle): string {
     // First normalize to LF
     let normalized = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
-    
+
     // Then convert to target
     if (targetLineEnding === '\r\n') {
         return normalized.replace(/\n/g, '\r\n');
