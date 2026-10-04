@@ -1,0 +1,3 @@
+## 2025-05-18 - Single-Pass Line Ending Normalization
+**Learning:** Line ending normalization across large files using chained regex replaces (`text.replace(/\r\n/g, '\n').replace(/\r/g, '\n')`) allocates multiple intermediate strings and scans the entire string buffer multiple times. A fast-path check (`!text.includes('\r')`) completely bypasses regex execution for standard LF text, and single-pass regex matching (`/\r?\n|\r/g`) normalizes line endings in 1 pass.
+**Action:** When handling line ending normalization in file operations, use `text.includes('\r')` fast path and single-pass regexes to avoid redundant buffer allocations.
