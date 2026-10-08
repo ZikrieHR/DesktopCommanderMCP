@@ -89,21 +89,12 @@ function getCharacterCodeData(expected: string, actual: string): {
         characterCodes.set(charCode, (characterCodes.get(charCode) || 0) + 1);
     }
     
-    // Create character codes string report
-    const charCodeReport: string[] = [];
-    characterCodes.forEach((count, code) => {
-        // Include character representation for better readability
-        const char = String.fromCharCode(code);
-        // Make special characters more readable
-        const charDisplay = code < 32 || code > 126 ? `\\x${code.toString(16).padStart(2, '0')}` : char;
-        charCodeReport.push(`${code}:${count}[${charDisplay}]`);
-    });
-    
-    // Sort by character code for consistency
-    charCodeReport.sort((a, b) => {
-        const codeA = parseInt(a.split(':')[0]);
-        const codeB = parseInt(b.split(':')[0]);
-        return codeA - codeB;
+    // Performance optimization: Sort Map entries numerically by char code before formatting
+    // into strings. This avoids expensive string split/parseInt operations inside Array.sort.
+    const sortedEntries = Array.from(characterCodes.entries()).sort((a, b) => a[0] - b[0]);
+    const charCodeReport = sortedEntries.map(([code, count]) => {
+        const charDisplay = code < 32 || code > 126 ? `\\x${code.toString(16).padStart(2, '0')}` : String.fromCharCode(code);
+        return `${code}:${count}[${charDisplay}]`;
     });
     
     return {
