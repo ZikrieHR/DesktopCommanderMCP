@@ -4,45 +4,53 @@
 export type LineEndingStyle = '\r\n' | '\n' | '\r';
 
 /**
- * Detect the line ending style used in a file - Optimized version
- * This algorithm uses early termination for maximum performance
+ * Detect the line ending style used in a file.
+ * Optimization: Uses native V8 C++ regex matching to find the first line ending match
+ * immediately without JS character indexing overhead or scanning past the first newline.
  */
 export function detectLineEnding(content: string): LineEndingStyle {
-    for (let i = 0; i < content.length; i++) {
-        if (content[i] === '\r') {
-            if (i + 1 < content.length && content[i + 1] === '\n') {
-                return '\r\n';
-            }
-            return '\r';
-        }
-        if (content[i] === '\n') {
-            return '\n';
-        }
+    const match = content.match(/\r\n?|\n/);
+    if (!match) {
+        // Default to system line ending if no line endings found
+        return process.platform === 'win32' ? '\r\n' : '\n';
     }
-    
-    // Default to system line ending if no line endings found
-    return process.platform === 'win32' ? '\r\n' : '\n';
+    return match[0] as LineEndingStyle;
 }
 
 /**
- * Normalize line endings to match the target style
+ * Normalize line endings to match the target style.
+ * Optimization: Uses non-allocating fast-path checks and single-pass regex replacement.
+ * Prevents multiple sequential intermediate string allocations and redundant regex passes.
  */
 export function normalizeLineEndings(text: string, targetLineEnding: LineEndingStyle): string {
-    // First normalize to LF
-    let normalized = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
-    
-    // Then convert to target
-    if (targetLineEnding === '\r\n') {
-        return normalized.replace(/\n/g, '\r\n');
-    } else if (targetLineEnding === '\r') {
-        return normalized.replace(/\n/g, '\r');
+    if (targetLineEnding === '\n') {
+        // Fast path: if there are no CR characters, string is already LF normalized
+        if (!text.includes('\r')) {
+            return text;
+        }
+        // Single pass convert any \r\n or standalone \r to \n
+        return text.replace(/\r?\n|\r/g, '\n');
+    } else if (targetLineEnding === '\r\n') {
+        // Fast path: if there are no CR characters, directly replace \n with \r\n in 1 pass
+        if (!text.includes('\r')) {
+            return text.replace(/\n/g, '\r\n');
+        }
+        // Single pass convert any \r\n, \n or \r to \r\n
+        return text.replace(/\r?\n|\r/g, '\r\n');
+    } else {
+        // Fast path for CR: if no \n or \r\n present
+        if (!text.includes('\n') && !text.includes('\r\n')) {
+            return text;
+        }
+        // Single pass convert any \r\n, \n or \r to \r
+        return text.replace(/\r?\n|\r/g, '\r');
     }
-    
-    return normalized;
 }
 
 /**
- * Analyze line ending usage in content
+ * Analyze line ending usage in content.
+ * Optimization: Uses charCodeAt instead of string index access content[i] to avoid
+ * creating 1-char string primitives on every iteration.
  */
 export function analyzeLineEndings(content: string): {
     style: LineEndingStyle;
@@ -53,16 +61,17 @@ export function analyzeLineEndings(content: string): {
     let lfCount = 0;
     let crCount = 0;
     
-    // Count line endings
+    // Count line endings using numeric character codes
     for (let i = 0; i < content.length; i++) {
-        if (content[i] === '\r') {
-            if (i + 1 < content.length && content[i + 1] === '\n') {
+        const code = content.charCodeAt(i);
+        if (code === 13) { // '\r'
+            if (i + 1 < content.length && content.charCodeAt(i + 1) === 10) { // '\n'
                 crlfCount++;
                 i++; // Skip the LF
             } else {
                 crCount++;
             }
-        } else if (content[i] === '\n') {
+        } else if (code === 10) { // '\n'
             lfCount++;
         }
     }
