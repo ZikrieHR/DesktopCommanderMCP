@@ -204,16 +204,34 @@ RECOMMENDATION: For large search/replace operations, consider breaking them into
         capture('server_edit_block_exact_success', {fileExtension: fileExtension, expectedReplacements, hasWarning: warningMessage !== ""});
         const resolvedEditPath = resolveAbsolutePath(filePath);
 
-        // Show a partial preview centered on the edited area
-        const newLines = newContent.split('\n');
-        const totalLines = newLines.length;
+        // Show a partial preview centered on the edited area.
+        // Performance Optimization: Compute line indices and slice bounds using indexOf('\n')
+        // to avoid allocating large string arrays from splitting multi-megabyte files.
         const changePos = content.indexOf(normalizedSearch);
-        const changeStartLine = changePos >= 0 ? newContent.substring(0, changePos).split('\n').length - 1 : 0;
         const changeLineCount = block.replace.split('\n').length;
         const contextLines = 10;
+
+        let totalLines = 1;
+        let changeStartLine = 0;
+        const lineStarts: number[] = [0];
+        let linePos = 0;
+
+        while ((linePos = newContent.indexOf('\n', linePos)) !== -1) {
+            totalLines++;
+            linePos++; // Move past the newline
+            if (changePos >= 0 && linePos <= changePos) {
+                changeStartLine++;
+            }
+            lineStarts.push(linePos);
+        }
+
         const previewStart = Math.max(0, changeStartLine - contextLines);
         const previewEnd = Math.min(totalLines, changeStartLine + changeLineCount + contextLines);
-        const previewContent = newLines.slice(previewStart, previewEnd).join('\n');
+
+        const startOffset = lineStarts[previewStart] ?? 0;
+        const endOffset = previewEnd < lineStarts.length ? lineStarts[previewEnd] - 1 : newContent.length;
+        const previewContent = newContent.substring(startOffset, endOffset);
+
         const previewLineCount = previewEnd - previewStart;
         const remaining = totalLines - previewEnd;
         const statusLine = `[Reading ${previewLineCount} lines from ${previewStart === 0 ? 'start' : `line ${previewStart}`} (total: ${totalLines} lines, ${remaining} remaining)]\n\n`;
