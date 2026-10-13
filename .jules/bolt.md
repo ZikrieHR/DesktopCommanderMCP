@@ -1,0 +1,3 @@
+## 2025-05-20 - V8 String `indexOf`/`includes` Scans vs Early-Terminating Character Loops
+**Learning:** V8's `indexOf('\r')` or `includes('\r')` on long strings (e.g. 2MB+) without `\r` scans the entire string to return `-1`. For early-terminating presence detection where line endings occur in the first line (e.g. `detectLineEnding`), a JS character loop stopping at the first line ending is much faster than full-string `indexOf`.
+**Action:** Use fast-path `includes()` for normalization skips where scanning is faster than multi-pass regex replacements, but keep character-by-character early-terminating loops when checking line-ending presence near the start of large files.
