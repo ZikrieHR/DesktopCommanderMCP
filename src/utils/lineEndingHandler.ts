@@ -5,19 +5,17 @@ export type LineEndingStyle = '\r\n' | '\n' | '\r';
 
 /**
  * Detect the line ending style used in a file - Optimized version
- * This algorithm uses charCodeAt inspection and early termination for maximum performance
+ * This algorithm uses early termination for maximum performance
  */
 export function detectLineEnding(content: string): LineEndingStyle {
-    const len = content.length;
-    for (let i = 0; i < len; i++) {
-        const code = content.charCodeAt(i);
-        if (code === 13) { // '\r'
-            if (i + 1 < len && content.charCodeAt(i + 1) === 10) { // '\n'
+    for (let i = 0; i < content.length; i++) {
+        if (content[i] === '\r') {
+            if (i + 1 < content.length && content[i + 1] === '\n') {
                 return '\r\n';
             }
             return '\r';
         }
-        if (code === 10) { // '\n'
+        if (content[i] === '\n') {
             return '\n';
         }
     }
@@ -28,23 +26,23 @@ export function detectLineEnding(content: string): LineEndingStyle {
 
 /**
  * Normalize line endings to match the target style
- * Optimized using single-pass regex replacements to reduce intermediate string allocations
  */
 export function normalizeLineEndings(text: string, targetLineEnding: LineEndingStyle): string {
-    if (targetLineEnding === '\n') {
-        return text.replace(/\r\n?/g, '\n');
-    } else if (targetLineEnding === '\r\n') {
-        return text.replace(/\r?\n|\r/g, '\r\n');
+    // First normalize to LF
+    let normalized = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+
+    // Then convert to target
+    if (targetLineEnding === '\r\n') {
+        return normalized.replace(/\n/g, '\r\n');
     } else if (targetLineEnding === '\r') {
-        return text.replace(/\r?\n|\r/g, '\r');
+        return normalized.replace(/\n/g, '\r');
     }
     
-    return text;
+    return normalized;
 }
 
 /**
  * Analyze line ending usage in content
- * Optimized using charCodeAt char inspection instead of string index access
  */
 export function analyzeLineEndings(content: string): {
     style: LineEndingStyle;
@@ -56,17 +54,15 @@ export function analyzeLineEndings(content: string): {
     let crCount = 0;
     
     // Count line endings
-    const len = content.length;
-    for (let i = 0; i < len; i++) {
-        const code = content.charCodeAt(i);
-        if (code === 13) { // '\r'
-            if (i + 1 < len && content.charCodeAt(i + 1) === 10) { // '\n'
+    for (let i = 0; i < content.length; i++) {
+        if (content[i] === '\r') {
+            if (i + 1 < content.length && content[i + 1] === '\n') {
                 crlfCount++;
                 i++; // Skip the LF
             } else {
                 crCount++;
             }
-        } else if (code === 10) { // '\n'
+        } else if (content[i] === '\n') {
             lfCount++;
         }
     }
