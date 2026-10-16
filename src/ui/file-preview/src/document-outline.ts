@@ -63,6 +63,9 @@ export function attachDocumentOutline(options: {
         return null;
     }
     let currentOutline = options.outline;
+    // Track current active heading to prevent unnecessary DOM mutations on every scroll frame
+    let lastActiveId: string | null = null;
+    let rafId: number | null = null;
 
     const handleClick = (event: Event): void => {
         const target = event.target as HTMLElement | null;
@@ -73,7 +76,10 @@ export function attachDocumentOutline(options: {
         }
 
         options.onSelect(headingId);
-        setActiveItem(nav, headingId);
+        if (headingId !== lastActiveId) {
+            lastActiveId = headingId;
+            setActiveItem(nav, headingId);
+        }
     };
 
     const updateActiveHeading = (): void => {
@@ -96,7 +102,20 @@ export function attachDocumentOutline(options: {
             return activeId;
         }, headings[0].item.id);
 
-        setActiveItem(nav, nextActive);
+        // Performance optimization: only mutate DOM when active heading actually changes
+        if (nextActive !== lastActiveId) {
+            lastActiveId = nextActive;
+            setActiveItem(nav, nextActive);
+        }
+    };
+
+    // Throttle scroll events via requestAnimationFrame to prevent layout thrashing (offsetTop reads)
+    const onScroll = (): void => {
+        if (rafId !== null) return;
+        rafId = requestAnimationFrame(() => {
+            rafId = null;
+            updateActiveHeading();
+        });
     };
 
     const toggleButton = options.shell.querySelector('#toc-toggle') as HTMLButtonElement | null;
@@ -111,17 +130,22 @@ export function attachDocumentOutline(options: {
     toggleButton?.addEventListener('click', handleToggle);
 
     nav.addEventListener('click', handleClick);
-    options.scrollContainer.addEventListener('scroll', updateActiveHeading, { passive: true });
+    options.scrollContainer.addEventListener('scroll', onScroll, { passive: true });
     updateActiveHeading();
 
     return {
         dispose: () => {
+            if (rafId !== null) {
+                cancelAnimationFrame(rafId);
+                rafId = null;
+            }
             nav.removeEventListener('click', handleClick);
-            options.scrollContainer.removeEventListener('scroll', updateActiveHeading);
+            options.scrollContainer.removeEventListener('scroll', onScroll);
             toggleButton?.removeEventListener('click', handleToggle);
         },
         refresh: (outline, activeHeadingId) => {
             currentOutline = outline;
+            lastActiveId = activeHeadingId ?? null;
             nav.innerHTML = renderDocumentOutlineItems(currentOutline, activeHeadingId);
             setActiveItem(nav, activeHeadingId ?? null);
             updateActiveHeading();
