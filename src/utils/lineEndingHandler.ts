@@ -5,23 +5,25 @@ export type LineEndingStyle = '\r\n' | '\n' | '\r';
 
 /**
  * Detect the line ending style used in a file - Optimized version
- * This algorithm uses early termination for maximum performance
+ * Uses native `indexOf` for fast C++ level string scanning instead of JS char iteration
  */
 export function detectLineEnding(content: string): LineEndingStyle {
-    for (let i = 0; i < content.length; i++) {
-        if (content[i] === '\r') {
-            if (i + 1 < content.length && content[i + 1] === '\n') {
-                return '\r\n';
-            }
-            return '\r';
-        }
-        if (content[i] === '\n') {
-            return '\n';
-        }
+    const crIndex = content.indexOf('\r');
+    const lfIndex = content.indexOf('\n');
+
+    if (crIndex === -1 && lfIndex === -1) {
+        // Default to system line ending if no line endings found
+        return process.platform === 'win32' ? '\r\n' : '\n';
     }
-    
-    // Default to system line ending if no line endings found
-    return process.platform === 'win32' ? '\r\n' : '\n';
+
+    if (crIndex !== -1 && (lfIndex === -1 || crIndex < lfIndex)) {
+        if (crIndex + 1 < content.length && content.charCodeAt(crIndex + 1) === 10) {
+            return '\r\n';
+        }
+        return '\r';
+    }
+
+    return '\n';
 }
 
 /**
@@ -43,6 +45,7 @@ export function normalizeLineEndings(text: string, targetLineEnding: LineEndingS
 
 /**
  * Analyze line ending usage in content
+ * Uses String.prototype.indexOf for fast jump-scanning across line breaks instead of single-char stepping
  */
 export function analyzeLineEndings(content: string): {
     style: LineEndingStyle;
@@ -52,25 +55,36 @@ export function analyzeLineEndings(content: string): {
     let crlfCount = 0;
     let lfCount = 0;
     let crCount = 0;
-    
-    // Count line endings
-    for (let i = 0; i < content.length; i++) {
-        if (content[i] === '\r') {
-            if (i + 1 < content.length && content[i + 1] === '\n') {
+
+    let pos = 0;
+    const len = content.length;
+
+    while (pos < len) {
+        const nextCr = content.indexOf('\r', pos);
+        const nextLf = content.indexOf('\n', pos);
+
+        if (nextCr === -1 && nextLf === -1) {
+            break;
+        }
+
+        if (nextCr !== -1 && (nextLf === -1 || nextCr < nextLf)) {
+            if (nextCr + 1 < len && content.charCodeAt(nextCr + 1) === 10) {
                 crlfCount++;
-                i++; // Skip the LF
+                pos = nextCr + 2;
             } else {
                 crCount++;
+                pos = nextCr + 1;
             }
-        } else if (content[i] === '\n') {
+        } else {
             lfCount++;
+            pos = nextLf + 1;
         }
     }
-    
+
     // Determine predominant style
     const total = crlfCount + lfCount + crCount;
     let style: LineEndingStyle;
-    
+
     if (crlfCount > lfCount && crlfCount > crCount) {
         style = '\r\n';
     } else if (lfCount > crCount) {
@@ -78,11 +92,11 @@ export function analyzeLineEndings(content: string): {
     } else {
         style = '\r';
     }
-    
+
     // Check for mixed line endings
-    const usedStyles = [crlfCount > 0, lfCount > 0, crCount > 0].filter(Boolean).length;
+    const usedStyles = (crlfCount > 0 ? 1 : 0) + (lfCount > 0 ? 1 : 0) + (crCount > 0 ? 1 : 0);
     const hasMixed = usedStyles > 1;
-    
+
     return {
         style,
         count: total,
