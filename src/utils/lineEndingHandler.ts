@@ -45,7 +45,7 @@ export function normalizeLineEndings(text: string, targetLineEnding: LineEndingS
 
 /**
  * Analyze line ending usage in content
- * Uses String.prototype.indexOf for fast jump-scanning across line breaks instead of single-char stepping
+ * Uses charCodeAt for single-pass scanning without repeated string lookups
  */
 export function analyzeLineEndings(content: string): {
     style: LineEndingStyle;
@@ -56,28 +56,18 @@ export function analyzeLineEndings(content: string): {
     let lfCount = 0;
     let crCount = 0;
 
-    let pos = 0;
     const len = content.length;
-
-    while (pos < len) {
-        const nextCr = content.indexOf('\r', pos);
-        const nextLf = content.indexOf('\n', pos);
-
-        if (nextCr === -1 && nextLf === -1) {
-            break;
-        }
-
-        if (nextCr !== -1 && (nextLf === -1 || nextCr < nextLf)) {
-            if (nextCr + 1 < len && content.charCodeAt(nextCr + 1) === 10) {
+    for (let i = 0; i < len; i++) {
+        const code = content.charCodeAt(i);
+        if (code === 13) { // '\r'
+            if (i + 1 < len && content.charCodeAt(i + 1) === 10) { // '\n'
                 crlfCount++;
-                pos = nextCr + 2;
+                i++; // Skip the LF
             } else {
                 crCount++;
-                pos = nextCr + 1;
             }
-        } else {
+        } else if (code === 10) { // '\n'
             lfCount++;
-            pos = nextLf + 1;
         }
     }
 
