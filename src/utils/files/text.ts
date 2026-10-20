@@ -121,16 +121,20 @@ export class TextFileHandler implements FileHandler {
     /**
      * Count lines in text content
      * Made static and public for use by other modules (e.g., writeFile telemetry in filesystem.ts)
+     * Optimized using indexOf to avoid allocating large string arrays in memory.
      */
     static countLines(content: string): number {
         if (content === '') return 0;
-        // A file with N lines has N-1 newline characters.
-        // If the file ends with a trailing newline, don't count the empty string after it.
-        const lines = content.split('\n');
-        if (lines[lines.length - 1] === '') {
-            return lines.length - 1;
+        let count = 0;
+        let pos = content.indexOf('\n');
+        while (pos !== -1) {
+            count++;
+            pos = content.indexOf('\n', pos + 1);
         }
-        return lines.length;
+        if (content.endsWith('\n')) {
+            return count;
+        }
+        return count + 1;
     }
 
     /**
