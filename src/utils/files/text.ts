@@ -122,15 +122,21 @@ export class TextFileHandler implements FileHandler {
      * Count lines in text content
      * Made static and public for use by other modules (e.g., writeFile telemetry in filesystem.ts)
      */
+    /**
+     * Count lines in text content without allocating array/substrings
+     */
     static countLines(content: string): number {
         if (content === '') return 0;
-        // A file with N lines has N-1 newline characters.
-        // If the file ends with a trailing newline, don't count the empty string after it.
-        const lines = content.split('\n');
-        if (lines[lines.length - 1] === '') {
-            return lines.length - 1;
+        let count = 0;
+        let pos = 0;
+        while ((pos = content.indexOf('\n', pos)) !== -1) {
+            count++;
+            pos++;
         }
-        return lines.length;
+        if (content.endsWith('\n')) {
+            return count;
+        }
+        return count + 1;
     }
 
     /**
@@ -195,31 +201,33 @@ export class TextFileHandler implements FileHandler {
      * Split text into lines while preserving line endings
      * Made static and public for use by other modules (e.g., readFileInternal in filesystem.ts)
      */
+    /**
+     * Split text into lines while preserving line endings using index slicing
+     * to avoid per-character string concatenation.
+     */
     static splitLinesPreservingEndings(content: string): string[] {
         if (!content) return [''];
 
         const lines: string[] = [];
-        let currentLine = '';
+        let lineStart = 0;
+        const len = content.length;
 
-        for (let i = 0; i < content.length; i++) {
-            const char = content[i];
-            currentLine += char;
-
-            if (char === '\n') {
-                lines.push(currentLine);
-                currentLine = '';
-            } else if (char === '\r') {
-                if (i + 1 < content.length && content[i + 1] === '\n') {
-                    currentLine += content[i + 1];
+        for (let i = 0; i < len; i++) {
+            const code = content.charCodeAt(i);
+            if (code === 10) { // '\n'
+                lines.push(content.substring(lineStart, i + 1));
+                lineStart = i + 1;
+            } else if (code === 13) { // '\r'
+                if (i + 1 < len && content.charCodeAt(i + 1) === 10) { // '\n'
                     i++;
                 }
-                lines.push(currentLine);
-                currentLine = '';
+                lines.push(content.substring(lineStart, i + 1));
+                lineStart = i + 1;
             }
         }
 
-        if (currentLine) {
-            lines.push(currentLine);
+        if (lineStart < len) {
+            lines.push(content.substring(lineStart));
         }
 
         return lines;
