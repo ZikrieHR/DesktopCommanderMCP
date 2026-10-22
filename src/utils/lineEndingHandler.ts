@@ -19,7 +19,7 @@ export function detectLineEnding(content: string): LineEndingStyle {
             return '\n';
         }
     }
-    
+
     // Default to system line ending if no line endings found
     return process.platform === 'win32' ? '\r\n' : '\n';
 }
@@ -28,16 +28,21 @@ export function detectLineEnding(content: string): LineEndingStyle {
  * Normalize line endings to match the target style
  */
 export function normalizeLineEndings(text: string, targetLineEnding: LineEndingStyle): string {
-    // First normalize to LF
-    let normalized = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
-    
-    // Then convert to target
+    // Fast path: if target is LF and text has no CR, return text as-is
+    if (targetLineEnding === '\n' && !text.includes('\r')) {
+        return text;
+    }
+
+    // Convert all CR/CRLF to LF first
+    let normalized = text.includes('\r') ? text.replace(/\r\n?/g, '\n') : text;
+
+    // Then convert to target if target is not LF
     if (targetLineEnding === '\r\n') {
         return normalized.replace(/\n/g, '\r\n');
     } else if (targetLineEnding === '\r') {
         return normalized.replace(/\n/g, '\r');
     }
-    
+
     return normalized;
 }
 
