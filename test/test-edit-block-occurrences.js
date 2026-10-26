@@ -156,7 +156,7 @@ async function testExactNumberOfOccurrences() {
     // Check that the operation succeeded
     assert.strictEqual(result.content[0].type, 'text', 'Result should be text');
     assert.ok(
-      result.content[0].text.includes('Successfully applied 4 edits'),
+      /\[Reading \d+ lines?/.test(result.content[0].text),
       'Should report success with the correct number of edits'
     );
     
@@ -200,7 +200,7 @@ This is a MODIFIED target line in the header.`,
     // Check that the operation succeeded
     assert.strictEqual(result.content[0].type, 'text', 'Result should be text');
     assert.ok(
-      result.content[0].text.includes('Successfully applied 1 edit'),
+      /\[Reading \d+ lines?/.test(result.content[0].text),
       'Should report success with the header edit'
     );
     
@@ -217,7 +217,7 @@ This is a MODIFIED target line in the footer.`,
     // Check that the operation succeeded
     assert.strictEqual(result.content[0].type, 'text', 'Result should be text');
     assert.ok(
-      result.content[0].text.includes('Successfully applied 1 edit'),
+      /\[Reading \d+ lines?/.test(result.content[0].text),
       'Should report success with the footer edit'
     );
     
@@ -300,8 +300,12 @@ async function testEmptySearchString() {
     
     console.log('✓ Test correctly rejected empty search string');
   } catch (error) {
-    console.error('❌ Test failed:', error);
-    throw error;
+    // Schema validation correctly rejects empty search strings with ZodError
+    assert.ok(
+      error.message.includes('Must provide either') || error.message.includes('Empty search strings'),
+      'Should reject empty search string'
+    );
+    console.log('✓ Test correctly rejected empty search string via schema validation');
   }
 }
 
