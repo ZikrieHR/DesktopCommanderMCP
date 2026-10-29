@@ -42,6 +42,31 @@ let lastIterativeMetrics: FuzzySearchMetrics['iterative'] = null;
 export function runFuzzySearch(text: string, query: string): { result: FuzzyMatch; metrics: FuzzySearchMetrics } {
     const startTime = performance.now();
     lastIterativeMetrics = null;
+
+    // Fast path: if query is an exact substring, return match immediately with 0 distance
+    if (query.length > 0) {
+        const exactIndex = text.indexOf(query);
+        if (exactIndex !== -1) {
+            return {
+                result: {
+                    start: exactIndex,
+                    end: exactIndex + query.length,
+                    value: text.substring(exactIndex, exactIndex + query.length),
+                    distance: 0
+                },
+                metrics: {
+                    recursive: {
+                        execution_time_ms: performance.now() - startTime,
+                        text_length: text.length,
+                        query_length: query.length,
+                        result_distance: 0
+                    },
+                    iterative: null
+                }
+            };
+        }
+    }
+
     const result = recursiveFuzzyIndexOf(text, query);
     return {
         result,
