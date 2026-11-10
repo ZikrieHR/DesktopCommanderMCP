@@ -26,19 +26,35 @@ export function detectLineEnding(content: string): LineEndingStyle {
 
 /**
  * Normalize line endings to match the target style
+ *
+ * Bolt ⚡ Optimization:
+ * Fast-path check: in modern dev environments, most text already uses '\n' line endings.
+ * If target is '\n' and text does not contain '\r', or target is '\r\n' and text does not
+ * contain '\r', we skip redundant multi-pass regex allocations.
  */
 export function normalizeLineEndings(text: string, targetLineEnding: LineEndingStyle): string {
-    // First normalize to LF
-    let normalized = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
-    
-    // Then convert to target
-    if (targetLineEnding === '\r\n') {
+    if (targetLineEnding === '\n') {
+        // Fast path: if there are no '\r' characters, it is already normalized to LF
+        if (!text.includes('\r')) {
+            return text;
+        }
+        return text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+    } else if (targetLineEnding === '\r\n') {
+        // Fast path: if already pure LF with no CR, single replace from '\n' to '\r\n'
+        if (!text.includes('\r')) {
+            return text.replace(/\n/g, '\r\n');
+        }
+        let normalized = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
         return normalized.replace(/\n/g, '\r\n');
     } else if (targetLineEnding === '\r') {
+        if (!text.includes('\n')) {
+            return text;
+        }
+        let normalized = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
         return normalized.replace(/\n/g, '\r');
     }
     
-    return normalized;
+    return text;
 }
 
 /**
